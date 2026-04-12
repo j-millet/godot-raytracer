@@ -5,6 +5,7 @@
 [ext_resource type="Material" uid="uid://cacavy2rlq3v1" path="res://BasicMaterial.tres" id="2_r3fl7"]
 [ext_resource type="Script" uid="uid://dod84lirexyts" path="res://scripts/rtmesh.gd" id="4_i5arm"]
 [ext_resource type="Script" uid="uid://chq8k8h47d6tr" path="res://scripts/fpscounter.gd" id="5_jka67"]
+[ext_resource type="ArrayMesh" uid="uid://dm7q2xrvsi7wa" path="res://Static/Suzanne.obj" id="6_i5arm"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_jka67"]
 
@@ -13,8 +14,6 @@
 [sub_resource type="SphereMesh" id="SphereMesh_i5arm"]
 radial_segments = 32
 rings = 16
-
-[sub_resource type="PrismMesh" id="PrismMesh_i5arm"]
 
 [node name="Game" type="Node3D"]
 
@@ -27,10 +26,11 @@ running_speed = 10.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Player"]
 transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0, 0, 0)
+visible = false
 material_override = ExtResource("2_r3fl7")
 mesh = SubResource("BoxMesh_jka67")
 script = ExtResource("4_i5arm")
-diffusionColor = Color(0, 0.772549, 0.772549, 1)
+diffusionColor = Color(0.919995, 1.34766e-05, 0.615795, 1)
 emissionColor = Color(1, 1, 1, 1)
 roughness = 1.0
 
@@ -38,13 +38,15 @@ roughness = 1.0
 
 [node name="RenderingManager" type="Node" parent="."]
 script = ExtResource("2_noarx")
-rays_per_pixel = 10
-max_ray_bounces = 6
+rays_per_pixel = 1
+max_ray_bounces = 3
+box_test_threshold = 120
 fov = 100.0
 
 [node name="Camera3D" type="Camera3D" parent="RenderingManager"]
-transform = Transform3D(-0.998319, -0.0148788, -0.0560095, -0.019833, 0.995838, 0.0889631, 0.0544527, 0.0899244, -0.994459, -30.232, -0.600601, 6.71847)
+transform = Transform3D(0.296128, -0.0148788, -0.955033, -0.0815111, 0.995838, -0.0407887, 0.951664, 0.0899244, 0.293682, 12.9286, 1.24275, -6.55386)
 projection = 1
+current = true
 script = ExtResource("5_jka67")
 
 [node name="Display" type="Sprite3D" parent="RenderingManager/Camera3D"]
@@ -77,11 +79,13 @@ emissionColor = Color(0.969137, 0.969137, 0.969137, 1)
 roughness = 0.8
 
 [node name="MeshInstance3D5" type="MeshInstance3D" parent="."]
-transform = Transform3D(-6, 0, -8.74228e-08, 0, 6, 0, 5.24537e-07, 0, -1, -0.0357013, 0, 3)
+transform = Transform3D(-6, 0, -8.74228e-08, 0, 6, 0, 5.24537e-07, 0, -1, 0.0533738, 0, 3)
 mesh = SubResource("QuadMesh_i5arm")
 script = ExtResource("4_i5arm")
 diffusionColor = Color(1, 1, 1, 1)
 emissionColor = Color(1, 1, 1, 1)
+emissionIntensity = 0.1
+roughness = 1.0
 
 [node name="MeshInstance3D6" type="MeshInstance3D" parent="."]
 transform = Transform3D(-6, 5.24537e-07, -3.82137e-15, 0, -2.62268e-07, -1, -5.24537e-07, -6, 4.37114e-08, 0, 3, 0)
@@ -98,6 +102,7 @@ mesh = SubResource("QuadMesh_i5arm")
 script = ExtResource("4_i5arm")
 diffusionColor = Color(1, 1, 1, 1)
 emissionColor = Color(1, 1, 1, 1)
+emissionIntensity = 0.2
 roughness = 1.0
 
 [node name="MeshInstance3D3" type="MeshInstance3D" parent="."]
@@ -105,10 +110,11 @@ transform = Transform3D(-2.62268e-07, 0, 0.991, 0, 6, 0, -6, 0, -4.3318e-08, -3,
 mesh = SubResource("QuadMesh_i5arm")
 script = ExtResource("4_i5arm")
 diffusionColor = Color(0.952076, 0.441174, 0.407683, 1)
-roughness = 0.8
+roughness = 1.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(2.36496, 0, 0, 0, 2.36496, 0, 0, 0, 2.36496, -1.5, 0, 0)
+transform = Transform3D(2.36496, 0, 0, 0, 2.36496, 0, 0, 0, 2.36496, -1.5, 0, -13.8217)
+visible = false
 mesh = SubResource("SphereMesh_i5arm")
 script = ExtResource("4_i5arm")
 is_sphere = true
@@ -116,9 +122,15 @@ diffusionColor = Color(1, 1, 1, 1)
 roughness = 0.01
 
 [node name="Monke" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.124059, 0, -0.784694, 0, 0.79444, 0, 0.784694, 0, 0.124059, 1.5, 0, 0)
-mesh = SubResource("PrismMesh_i5arm")
+transform = Transform3D(0.113063, 0.00382968, -0.786344, -0.00719935, 0.794402, 0.0028338, 0.786321, 0.00672268, 0.113093, 1.5, 0, 0)
+mesh = ExtResource("6_i5arm")
 script = ExtResource("4_i5arm")
 diffusionColor = Color(0.800707, 0.64905, 0.113117, 1)
 emissionColor = Color(0.695503, 0.695503, 0.695503, 1)
 roughness = 0.25
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(0.91609, 0, -0.400973, 0, 1, 0, 0.400973, 0, 0.91609, 0, 0, 2.27715)
+script = ExtResource("1_noarx")
+
+[node name="OmniLight3D" type="OmniLight3D" parent="."]

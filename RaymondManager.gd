@@ -24,6 +24,7 @@ var height_width_ratio := float(screen_size.y)/float(screen_size.x)
 
 @export var rays_per_pixel := 2;
 @export var max_ray_bounces := 2;
+@export var box_test_threshold := 10;
 @export var fov := 70.0
 var objects: Array[RTMesh]
 
@@ -83,7 +84,7 @@ func make_uniform_from_packed_byte_array(bytes:PackedByteArray, binding: int = 0
 	return uniform
 
 func make_constant_uniform_set() -> RID:
-	var constants := PackedInt32Array([max_ray_bounces])
+	var constants := PackedInt32Array([max_ray_bounces,box_test_threshold])
 	var vertices := PackedVector4Array()
 	var indices := PackedInt32Array()
 	var normals := PackedVector4Array()
@@ -91,24 +92,19 @@ func make_constant_uniform_set() -> RID:
 	
 	var total_indices := 0
 
-	for o in objects:
-		var arrays = o.mesh.surface_get_arrays(0)
-		var mesh_vertices = arrays[Mesh.ARRAY_VERTEX]
-		var mesh_indices = arrays[Mesh.ARRAY_INDEX]
-		var mesh_normals = arrays[Mesh.ARRAY_NORMAL]
-		
+	for o in objects:	
 
 		var past_size = vertices.size()
 		
-		vertices.resize(vertices.size() + mesh_vertices.size())
-		normals.resize(normals.size() + mesh_normals.size())
+		vertices.resize(vertices.size() + o.mesh_vertices.size())
+		normals.resize(normals.size() + o.mesh_normals.size())
 		
-		for idx in mesh_indices:
+		for idx in o.mesh_indices:
 			indices.append(idx + past_size)
 			
-		for i in range(len(mesh_vertices)):
-			vertices[past_size + i] = vec3_to_vec4(mesh_vertices[i])
-			normals[past_size + i] = vec3_to_vec4(mesh_normals[i])
+		for i in range(len(o.mesh_vertices)):
+			vertices[past_size + i] = vec3_to_vec4(o.mesh_vertices[i])
+			normals[past_size + i] = vec3_to_vec4(o.mesh_normals[i])
 	
 		for bvh in o.bvh:
 			bvhs.append_array(bvh.toPackedByteArray())

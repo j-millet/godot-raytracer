@@ -4,6 +4,8 @@
 //CONSTANTS
 
 #define BVH_STACK_SIZE 32
+#define POS_INF 1.0/0.0
+#define NEG_INF -1.0/0.0
 
 //STRUCTS
 
@@ -56,6 +58,7 @@ struct Sphere{
 struct Ray{
     vec3 origin;
     vec3 direction;
+    vec3 inverseDirection;
 };
 
 
@@ -64,6 +67,7 @@ struct Hit{
     float dist;
     vec3 point;
     vec3 normal;
+    int boxTests;
 };
 
 struct ObjectHit{
@@ -92,6 +96,7 @@ objects;
 
 layout(set = 1, binding = 0, std430) readonly buffer ConstantsBuffer {
     int max_ray_bounces;
+    int box_test_threshold;
 }
 constants;
 
@@ -139,6 +144,10 @@ vec3 vec4tovec3(vec4 v4){
     return vec3(v4.x,v4.y,v4.z);
 }
 
+vec4 vec3tovec4(vec3 v3){
+    return vec4(v3.x,v3.y,v3.z,0);
+}
+
 vec3 randVectorInHemisphere(vec3 normal, inout uint seed){
     vec3 rv = normalize(vec3(
         randn(seed),
@@ -158,18 +167,42 @@ Triangle getTriangle(int index, Object owner){
     int i2 = vertexIndices.indices[index + 1];
     int i3 = vertexIndices.indices[index + 2];
     return Triangle(
-        rotateVec(vec4tovec3(vertices.coords[i1] * owner.scale),owner.rotation)  + vec4tovec3(owner.position),
-        rotateVec(vec4tovec3(vertices.coords[i2] * owner.scale),owner.rotation)  + vec4tovec3(owner.position),
-        rotateVec(vec4tovec3(vertices.coords[i3] * owner.scale),owner.rotation)  + vec4tovec3(owner.position),
-        rotateVec(vec4tovec3(vertexNormals.vecs[i1]),owner.rotation),
-        rotateVec(vec4tovec3(vertexNormals.vecs[i2]),owner.rotation),
-        rotateVec(vec4tovec3(vertexNormals.vecs[i3]),owner.rotation)
+        vec4tovec3(vertices.coords[i1]),
+        vec4tovec3(vertices.coords[i2]),
+        vec4tovec3(vertices.coords[i3]),
+        vec4tovec3(vertexNormals.vecs[i1]),
+        vec4tovec3(vertexNormals.vecs[i2]),
+        vec4tovec3(vertexNormals.vecs[i3])
     );
+}
+
+Ray rayInObjectLocal(Ray ray, Object object){
+    vec4 rotation = normalize(object.rotation);
+    vec4 invRot = vec4(-rotation.xyz, rotation.w);
+    vec3 localOrigin = rotateVec(ray.origin - vec4tovec3(object.position), invRot) / object.scale.xyz;
+    vec3 localDirection = rotateVec(ray.direction, invRot) / object.scale.xyz;
+    vec3 localInverseDirection = rotateVec(ray.inverseDirection, invRot) / object.scale.xyz;
+
+    return Ray(
+        localOrigin,
+        localDirection,
+        localInverseDirection
+    );
+}
+
+vec3 objectPointToWorld(vec3 point, Object object){
+    vec4 rotation = normalize(object.rotation);
+    return rotateVec(point * object.scale.xyz, rotation) + vec4tovec3(object.position);
+}
+
+vec3 objectNormalToWorld(vec3 normal, Object object){
+    vec4 rotation = normalize(object.rotation);
+    return normalize(rotateVec(normal / object.scale.xyz, rotation));
 }
 
 
 Hit noHit(){
-    return Hit(false,0,vec3(0,0,0),vec3(0,0,0));
+    return Hit(false,POS_INF,vec3(0,0,0),vec3(0,0,0),0);
 }
 
 Hit rayIntersectsSphere(
@@ -190,7 +223,7 @@ Hit rayIntersectsSphere(
     vec3 point = r.origin + t*r.direction;
     vec3 normal = normalize(point - s.position);
     
-    return Hit(correctDelta && correctDistance,t,point,normal); 
+    return Hit(correctDelta && correctDistance,t,point,normal,0); 
 }
 
 
@@ -246,33 +279,22 @@ Hit rayIntersects(
 }
 
 
-bool rayInsideBBox(Ray r, BVHBBox bbox){
+float rayInsideBBoxDist(Ray r, BVHBBox bbox, Object obj){
 
     vec3 aabbStart = vec4tovec3(bbox.aabbStart);
     vec3 aabbEnd = vec4tovec3(bbox.aabbEnd);
     
-    float tmin = -1.0 / 0.0; // -INF
-    float tmax = 1.0 / 0.0;  // +INF
+    vec3 tMin = (aabbStart - r.origin) * r.inverseDirection;
+    vec3 tMax = (aabbEnd - r.origin) * r.inverseDirection;
 
-    for (int i = 0; i < 3; i++)
-    {
-        float invD = 1.0 / r.direction[i];
-        float t0 = (aabbStart[i] - r.origin[i]) * invD;
-        float t1 = (aabbEnd[i] - r.origin[i]) * invD;
-        
-        float tmp = t0;
-        t0 = (invD < 0.0)? t1:t0;
-        t1 = (invD < 0.0)? tmp:t1;
+    vec3 t1 = min(tMin,tMax);
+    vec3 t2 = max(tMin,tMax);
 
+    float dstFar = min(min(t2.x,t2.y),t2.z);
+    float dstNear = max(max(t1.x,t1.y),t1.z);
 
-        tmin = max(tmin, t0);
-        tmax = min(tmax, t1);
+    return (dstFar >= dstNear && dstFar > 0)? dstNear:POS_INF;
 
-        if (tmax + 0.00001 <= tmin)
-            return false;
-    }
-
-    return true;
 }
 
 Hit rayIntersectsObject(Ray r, Object obj){
@@ -281,47 +303,56 @@ Hit rayIntersectsObject(Ray r, Object obj){
 
     bvhStack[stackPtr++] = 0;
 
+
+    Hit objHit = noHit();
+    int tests = 0;
     while (stackPtr > 0 && stackPtr < BVH_STACK_SIZE){
         int bboxIndex = bvhStack[--stackPtr];
         BVHBBox bbox = bvh.bboxes[obj.bvhRootIndex + bboxIndex];
-        if (!rayInsideBBox(r,bbox)){
+        tests++;
+        float bbox_dist = rayInsideBBoxDist(r, bbox, obj);
+        if (bbox_dist >= objHit.dist){
             continue;
         }
         if (bbox.childLeftIndex == 0 && bbox.childRightIndex == 0){
             int startIdx = bbox.verticesStartLocal + obj.triangleIndicesStart;
             int endIdx = bbox.verticesEndLocal + obj.triangleIndicesStart;
             
-            Hit objHit = Hit(false, 1e7, vec3(0), vec3(0));
 
             for(int j = startIdx; j < endIdx && j < obj.triangleIndicesEnd; j+=3){
                 Hit h = rayIntersects(r, getTriangle(j, obj), 0.00001);
                 bool closer = h.didHit && (h.dist < objHit.dist);
+                objHit.boxTests++;
                 objHit = closer ? h : objHit;
             }
-            return objHit;
         }
-        if (bbox.childLeftIndex > 0)
-                bvhStack[stackPtr++] = bbox.childLeftIndex;
-
-        if (bbox.childRightIndex > 0)
-            bvhStack[stackPtr++] = bbox.childRightIndex;
+        else{
+            BVHBBox childLeft = bvh.bboxes[obj.bvhRootIndex + bbox.childLeftIndex];
+            BVHBBox childRight = bvh.bboxes[obj.bvhRootIndex + bbox.childRightIndex];
+            float childLeftDist = rayInsideBBoxDist(r, childLeft, obj);
+            float childRightDist = rayInsideBBoxDist(r, childRight, obj);
+            if (childLeftDist > childRightDist){
+                if (childRightDist < objHit.dist) bvhStack[stackPtr++] = bbox.childRightIndex;
+                if (childLeftDist < objHit.dist) bvhStack[stackPtr++] = bbox.childLeftIndex;
+            }
+            else{
+                if (childLeftDist < objHit.dist) bvhStack[stackPtr++] = bbox.childLeftIndex;
+                if (childRightDist < objHit.dist) bvhStack[stackPtr++] = bbox.childRightIndex;
+            }
+        }
     }
-    return noHit();
+    return objHit;
 }
 
 ObjectHit trace(Ray r){
-    Hit minHit = Hit(false,10000000.0,vec3(0,0,0),vec3(0,0,0));
+    Hit minHit = Hit(false,10000000.0,vec3(0,0,0),vec3(0,0,0),0);
     int minObjIndex = -1;
 
     for (int i = 0; i < objects.list.length(); i++){
         Object obj = objects.list[i];
         BVHBBox bvhroot = bvh.bboxes[obj.bvhRootIndex];
 
-        if (!rayInsideBBox(r,bvhroot)){
-            continue;
-        }
-
-        Hit objHit = Hit(false, 1e7, vec3(0), vec3(0));
+        Hit objHit = Hit(false, 1e7, vec3(0), vec3(0),0);
 
         if (obj.isSphere == 1){
             objHit = rayIntersectsSphere(
@@ -333,7 +364,14 @@ ObjectHit trace(Ray r){
             );
         }
         else{
-            objHit = rayIntersectsObject(r, obj);
+            Ray localRay = rayInObjectLocal(r, obj);
+            objHit = rayIntersectsObject(localRay, obj);
+
+            if (objHit.didHit){
+                objHit.point = objectPointToWorld(objHit.point, obj);
+                objHit.normal = objectNormalToWorld(objHit.normal, obj);
+                objHit.dist = length(objHit.point - r.origin);
+            }
         }
 
         bool closer = objHit.didHit && (objHit.dist < minHit.dist);
@@ -344,6 +382,14 @@ ObjectHit trace(Ray r){
     
     return ObjectHit(
         minHit,minObjIndex
+    );
+}
+
+Ray makeRay(vec3 origin, vec3 direction){
+    return Ray(
+        origin,
+        direction,
+        1/direction
     );
 }
 
@@ -366,24 +412,18 @@ void main() {
 
     uint seed = uint(camera.elapsed_frames) * coords.x * coords.y;
 
-    Ray r = Ray(vec4tovec3(camera.cameraPosition),pixel_point);
+    Ray r = makeRay(vec4tovec3(camera.cameraPosition),pixel_point);
     for (int i = 0; i < constants.max_ray_bounces;i++){
         ObjectHit traceInfo = trace(r);
         if (!traceInfo.hit.didHit){
             break;
         }
-        // float col = -dot(r.direction, traceInfo.hit.normal);
-        // value = vec4(
-        //     1.0 * col,
-        //     1.0 * col,
-        //     1.0 * col,
-        //     1.0
-        // );
-        // break;
         Object hitObj = objects.list[traceInfo.objectIndex];
+        //value.x += 255.0*float(traceInfo.hit.boxTests > constants.box_test_threshold);
+        // break;
         value += (hitObj.material.emissionColor) * hitObj.material.emissionIntensity * rayColor;
         rayColor *= hitObj.material.diffusionColor;
-        r = Ray(
+        r = makeRay(
             traceInfo.hit.point,
             normalize(
                 mix(
@@ -392,9 +432,6 @@ void main() {
                     hitObj.material.roughness
                 )));
     }
-
-    //value = vec4(float(constants.max_ray_bounces)/2.0,0,0,0);
-
     value.w = 1.0;
     
     vec4 total_value = int(camera.elapsed_frames) == 1? vec4(0,0,0,0):imageLoad(image,coords);
