@@ -162,7 +162,7 @@ vec3 rotateVec(vec3 vec, vec4 quatRotation){
     return vec + 2 * cross(u, cross(u, vec) + quatRotation.w * vec);
 }
 
-Triangle getTriangle(int index, Object owner){
+Triangle getTriangle(int index){
     int i1 = vertexIndices.indices[index];
     int i2 = vertexIndices.indices[index + 1];
     int i3 = vertexIndices.indices[index + 2];
@@ -181,12 +181,12 @@ Ray rayInObjectLocal(Ray ray, Object object){
     vec4 invRot = vec4(-rotation.xyz, rotation.w);
     vec3 localOrigin = rotateVec(ray.origin - vec4tovec3(object.position), invRot) / object.scale.xyz;
     vec3 localDirection = rotateVec(ray.direction, invRot) / object.scale.xyz;
-    vec3 localInverseDirection = rotateVec(ray.inverseDirection, invRot) / object.scale.xyz;
+
 
     return Ray(
         localOrigin,
         localDirection,
-        localInverseDirection
+        1/localDirection
     );
 }
 
@@ -240,6 +240,8 @@ Hit rayIntersects(
 
     Hit result = noHit();
 
+    if (dot(normal,r.direction) > 0) return result;
+
 
     vec3 triA = tri.pointA;
     vec3 triB = tri.pointB;
@@ -250,29 +252,28 @@ Hit rayIntersects(
 
     vec3 cross_e2 = cross(r.direction,edge2);
     float det = dot(edge1,cross_e2);
+
+    if (abs(det) < epsilon) return result;
     
     float inv_det = 1.0/det;
     vec3 s = r.origin - triA;
     float u = inv_det * dot(s,cross_e2);
 
+    if (u < -epsilon || u - 1 > epsilon) return result;
 
     vec3 s_cross_e1 = cross(s,edge1);
     float v = inv_det * dot(r.direction, s_cross_e1);
+
+    if (v < -epsilon || u + v - 1 > epsilon) return result;
 
     float t = inv_det * dot(edge2, s_cross_e1);
 
     vec3 point = r.origin + t*r.direction;
 
-    bool frontFace = dot(r.direction, normal) < 0.0;
-    bool validDet = abs(det) > epsilon;
-    bool validU = (u >= -epsilon) && (u <= 1.0 + epsilon);
-    bool validV = (v >= -epsilon) && (u + v <= 1.0 + epsilon);
-    bool validT = t > epsilon;
-
-    bool didHit = frontFace && validDet && validU && validV && validT;
+    bool didHit = t > epsilon;
 
     result.didHit = didHit;
-    result.dist = didHit? t: 1e7;
+    result.dist = didHit? t: POS_INF;
     result.point = point;
     result.normal = normal;
     return result;
@@ -320,7 +321,7 @@ Hit rayIntersectsObject(Ray r, Object obj){
             
 
             for(int j = startIdx; j < endIdx && j < obj.triangleIndicesEnd; j+=3){
-                Hit h = rayIntersects(r, getTriangle(j, obj), 0.00001);
+                Hit h = rayIntersects(r, getTriangle(j), 0.00001);
                 bool closer = h.didHit && (h.dist < objHit.dist);
                 objHit.boxTests++;
                 objHit = closer ? h : objHit;
@@ -350,7 +351,6 @@ ObjectHit trace(Ray r){
 
     for (int i = 0; i < objects.list.length(); i++){
         Object obj = objects.list[i];
-        BVHBBox bvhroot = bvh.bboxes[obj.bvhRootIndex];
 
         Hit objHit = Hit(false, 1e7, vec3(0), vec3(0),0);
 

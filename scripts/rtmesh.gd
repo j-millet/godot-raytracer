@@ -48,6 +48,10 @@ var mesh_vertices: PackedVector3Array
 var mesh_indices: PackedInt32Array
 var mesh_normals: PackedVector3Array
 
+
+var bvh_depth := 0
+var bvh_max_leaf_tris := 0
+
 const bvh_max_depth = 31
 
 func vec3_to_vec4(vec3: Vector3, w:float = 0.0) -> Vector4:
@@ -68,7 +72,7 @@ func get_aabb_from_mesh(indicesStart:int, indicesEnd: int) -> Array[Vector3]:
 	return [minVals,maxVals]
 
 func split_bbox(bbox:BVHBBox) -> Array[BVHBBox]:
-	if bbox.verticesEnd - bbox.verticesStart <= 8:
+	if bbox.verticesEnd - bbox.verticesStart <= 8*3:
 		return [bbox]
 	var extent = bbox.aabbEnd - bbox.aabbStart
 	var axis = 0
@@ -77,7 +81,7 @@ func split_bbox(bbox:BVHBBox) -> Array[BVHBBox]:
 	if extent.z > extent[axis]:
 		axis = 2
 	
-	var split = (bbox.aabbStart[axis] + extent[axis])/2
+	var split = (bbox.aabbStart[axis] + bbox.aabbEnd[axis]) / 2.0
 	
 	var less_than_ptr = bbox.verticesStart
 	for i in range(bbox.verticesStart,bbox.verticesEnd,3):
@@ -111,7 +115,6 @@ func make_bbox_cube(bbox:BVHBBox):
 	cube.mesh = mesh
 	cube.position = Vector3(center.x,center.y,center.z)
 	var wire_mat = StandardMaterial3D.new()
-	wire_mat.wireframe = true
 	wire_mat.flags_unshaded = true
 	wire_mat.albedo_color = Color(1, 0, 0,0.1)
 	wire_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -120,12 +123,15 @@ func make_bbox_cube(bbox:BVHBBox):
 	add_child(cube)
 	
 func make_bvh(idx: int,depth=0):
+	bvh_depth = max(bvh_depth,depth)
 	if depth > bvh_max_depth:
 		return
 	var root = bvh[idx]
 	var split:Array[BVHBBox] = split_bbox(root)
-	make_bbox_cube(root)
+	
 	if len(split) == 1:
+		make_bbox_cube(root)
+		bvh_max_leaf_tris = max(bvh_max_leaf_tris, (root.verticesEnd-root.verticesStart)/3)
 		return
 	#if depth > -1:
 		
@@ -154,7 +160,7 @@ func _ready() -> void:
 			self.mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX].size(),
 			0,0))]
 	make_bvh(0)
-	print(bvh)
+	print("{0}; {1}; {2}; {3}".format([len(bvh),bvh_depth,bvh_max_leaf_tris,mesh_vertices.size()]))
 
 func toPackedByteArray(total_vertex_indices:int, total_bvh_indices: int) -> Array:
 	var obj_array := PackedByteArray()

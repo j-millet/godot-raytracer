@@ -12,8 +12,6 @@
 [sub_resource type="QuadMesh" id="QuadMesh_i5arm"]
 
 [sub_resource type="SphereMesh" id="SphereMesh_i5arm"]
-radial_segments = 32
-rings = 16
 
 [node name="Game" type="Node3D"]
 
@@ -38,8 +36,7 @@ roughness = 1.0
 
 [node name="RenderingManager" type="Node" parent="."]
 script = ExtResource("2_noarx")
-rays_per_pixel = 1
-max_ray_bounces = 3
+max_ray_bounces = 5
 box_test_threshold = 120
 fov = 100.0
 
@@ -79,7 +76,7 @@ emissionColor = Color(0.969137, 0.969137, 0.969137, 1)
 roughness = 0.8
 
 [node name="MeshInstance3D5" type="MeshInstance3D" parent="."]
-transform = Transform3D(-6, 0, -8.74228e-08, 0, 6, 0, 5.24537e-07, 0, -1, 0.0533738, 0, 3)
+transform = Transform3D(-7.15206, 0, -8.74228e-08, 0, 6, 0, 6.25253e-07, 0, -1, 0.0533738, 0, 3)
 mesh = SubResource("QuadMesh_i5arm")
 script = ExtResource("4_i5arm")
 diffusionColor = Color(1, 1, 1, 1)
@@ -93,7 +90,7 @@ mesh = SubResource("QuadMesh_i5arm")
 script = ExtResource("4_i5arm")
 diffusionColor = Color(1, 1, 1, 1)
 emissionColor = Color(1, 1, 1, 1)
-emissionIntensity = 0.6
+emissionIntensity = 0.2
 roughness = 1.0
 
 [node name="MeshInstance3D7" type="MeshInstance3D" parent="."]
@@ -102,7 +99,7 @@ mesh = SubResource("QuadMesh_i5arm")
 script = ExtResource("4_i5arm")
 diffusionColor = Color(1, 1, 1, 1)
 emissionColor = Color(1, 1, 1, 1)
-emissionIntensity = 0.2
+emissionIntensity = 0.01
 roughness = 1.0
 
 [node name="MeshInstance3D3" type="MeshInstance3D" parent="."]
@@ -113,24 +110,33 @@ diffusionColor = Color(0.952076, 0.441174, 0.407683, 1)
 roughness = 1.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(2.36496, 0, 0, 0, 2.36496, 0, 0, 0, 2.36496, -1.5, 0, -13.8217)
-visible = false
+transform = Transform3D(1.62922, 1.16001, -9.11985e-07, -0.53752, 0.754939, -1.77233, -1.02796, 1.44376, 0.926748, 2.63744, -2.60333, -2.63485)
 mesh = SubResource("SphereMesh_i5arm")
 script = ExtResource("4_i5arm")
 is_sphere = true
 diffusionColor = Color(1, 1, 1, 1)
-roughness = 0.01
+emissionColor = Color(2.11775e-06, 0.758819, 0.797824, 1)
+emissionIntensity = 0.5
+roughness = 1.0
 
 [node name="Monke" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.113063, 0.00382968, -0.786344, -0.00719935, 0.794402, 0.0028338, 0.786321, 0.00672268, 0.113093, 1.5, 0, 0)
+transform = Transform3D(0.613168, 0.388554, -0.955537, -0.0116847, 1.11416, 0.445555, 1.03145, -0.218363, 0.573088, 0.876374, 0.200435, -0.905175)
 mesh = ExtResource("6_i5arm")
 script = ExtResource("4_i5arm")
-diffusionColor = Color(0.800707, 0.64905, 0.113117, 1)
+diffusionColor = Color(0.997312, 0.955277, 0.835114, 1)
 emissionColor = Color(0.695503, 0.695503, 0.695503, 1)
-roughness = 0.25
+roughness = 0.1
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(0.91609, 0, -0.400973, 0, 1, 0, 0.400973, 0, 0.91609, 0, 0, 2.27715)
 script = ExtResource("1_noarx")
 
-[node name="OmniLight3D" type="OmniLight3D" parent="."]
+[node name="MeshInstance3D8" type="MeshInstance3D" parent="."]
+transform = Transform3D(1.62922, 1.16001, -9.11985e-07, -0.53752, 0.754939, -1.77233, -1.02796, 1.44376, 0.926748, -2.32632, 2.6759, 2.53902)
+mesh = SubResource("SphereMesh_i5arm")
+script = ExtResource("4_i5arm")
+is_sphere = true
+diffusionColor = Color(1, 1, 1, 1)
+emissionColor = Color(0.755973, 0.554656, 1, 1)
+emissionIntensity = 0.7
+roughness = 1.0
