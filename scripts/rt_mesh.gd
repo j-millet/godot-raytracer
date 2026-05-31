@@ -93,7 +93,7 @@ var bvh_depth := 0
 var bvh_max_leaf_tris := 0
 
 const bvh_max_depth = 31
-const bvh_num_bins = 16
+const bvh_num_bins = 8
 
 func vec3_to_vec4(vec3: Vector3, w:float = 0.0) -> Vector4:
 	return Vector4(vec3.x,vec3.y,vec3.z,w)

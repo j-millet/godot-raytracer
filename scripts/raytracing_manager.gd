@@ -11,7 +11,7 @@ var playerRot: Vector3
 var elapsedFramesNoMovement := 1
 var elapsedFrames := 1
 # Load GLSL shader
-var shader_file := load("res://raymond.glsl")
+var shader_file := load("res://raytracer.glsl")
 var shader_spirv: RDShaderSPIRV = shader_file.get_spirv()
 var shader := rd.shader_create_from_spirv(shader_spirv)
 

@@ -1,10 +1,10 @@
 [gd_scene load_steps=10 format=3 uid="uid://dcudgi2d2io8v"]
 
-[ext_resource type="Script" uid="uid://vt10wqyb4pck" path="res://scripts/player-flying.gd" id="1_noarx"]
-[ext_resource type="Script" uid="uid://dq7ju8cnub8sk" path="res://RaymondManager.gd" id="2_noarx"]
+[ext_resource type="Script" uid="uid://vt10wqyb4pck" path="res://scripts/player_flying.gd" id="1_noarx"]
 [ext_resource type="Material" uid="uid://cacavy2rlq3v1" path="res://BasicMaterial.tres" id="2_r3fl7"]
-[ext_resource type="Script" uid="uid://dod84lirexyts" path="res://scripts/rtmesh.gd" id="4_i5arm"]
-[ext_resource type="Script" uid="uid://chq8k8h47d6tr" path="res://scripts/fpscounter.gd" id="5_jka67"]
+[ext_resource type="Script" uid="uid://dod84lirexyts" path="res://scripts/rt_mesh.gd" id="4_i5arm"]
+[ext_resource type="Script" uid="uid://d0xeo31dt6hch" path="res://scripts/raytracing_manager.gd" id="4_wc5p8"]
+[ext_resource type="Script" uid="uid://chq8k8h47d6tr" path="res://scripts/fps_counter.gd" id="5_jka67"]
 [ext_resource type="ArrayMesh" uid="uid://dm7q2xrvsi7wa" path="res://Static/Suzanne.obj" id="6_i5arm"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_jka67"]
@@ -22,7 +22,7 @@ script = ExtResource("1_noarx")
 speed = 4.0
 running_speed = 10.0
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Player"]
+[node name="PlayerCube" type="MeshInstance3D" parent="Player"]
 transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0, 0, 0)
 visible = false
 material_override = ExtResource("2_r3fl7")
@@ -32,10 +32,12 @@ diffusionColor = Color(0.919995, 1.34766e-05, 0.615795, 1)
 emissionColor = Color(1, 1, 1, 1)
 roughness = 1.0
 
-[node name="topLeft" type="Node3D" parent="."]
+[node name="DebugCamera" type="Camera3D" parent="Player"]
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0, 0)
+current = true
 
 [node name="RenderingManager" type="Node" parent="."]
-script = ExtResource("2_noarx")
+script = ExtResource("4_wc5p8")
 max_ray_bounces = 5
 box_test_threshold = 120
 fov = 100.0
@@ -60,58 +62,67 @@ offset_bottom = 280.0
 text = "
 "
 
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="."]
+[node name="Room" type="Node3D" parent="."]
+
+[node name="WallBlue" type="MeshInstance3D" parent="Room"]
 transform = Transform3D(-2.62268e-07, 0, -0.668, 0, 6, 0, 6, 0, -2.91992e-08, 3, 0, 0)
 mesh = SubResource("QuadMesh_i5arm")
+skeleton = NodePath("../..")
 script = ExtResource("4_i5arm")
 diffusionColor = Color(0.436043, 0.901764, 0.967783, 1)
 roughness = 0.8
 
-[node name="MeshInstance3D4" type="MeshInstance3D" parent="."]
+[node name="WallGreen" type="MeshInstance3D" parent="Room"]
 transform = Transform3D(6, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, -3)
 mesh = SubResource("QuadMesh_i5arm")
+skeleton = NodePath("../..")
 script = ExtResource("4_i5arm")
 diffusionColor = Color(0.148888, 0.976404, 0.509341, 1)
 emissionColor = Color(0.969137, 0.969137, 0.969137, 1)
 roughness = 0.8
 
-[node name="MeshInstance3D5" type="MeshInstance3D" parent="."]
+[node name="WallRed" type="MeshInstance3D" parent="Room"]
+transform = Transform3D(-2.62268e-07, 0, 0.991, 0, 6, 0, -6, 0, -4.3318e-08, -3, 0, 0)
+mesh = SubResource("QuadMesh_i5arm")
+skeleton = NodePath("../..")
+script = ExtResource("4_i5arm")
+diffusionColor = Color(0.952076, 0.441174, 0.407683, 1)
+roughness = 1.0
+
+[node name="4thWall" type="MeshInstance3D" parent="Room"]
 transform = Transform3D(-7.15206, 0, -8.74228e-08, 0, 6, 0, 6.25253e-07, 0, -1, 0.0533738, 0, 3)
 mesh = SubResource("QuadMesh_i5arm")
+skeleton = NodePath("../..")
 script = ExtResource("4_i5arm")
 diffusionColor = Color(1, 1, 1, 1)
 emissionColor = Color(1, 1, 1, 1)
 emissionIntensity = 0.1
 roughness = 1.0
 
-[node name="MeshInstance3D6" type="MeshInstance3D" parent="."]
+[node name="Ceiling" type="MeshInstance3D" parent="Room"]
 transform = Transform3D(-6, 5.24537e-07, -3.82137e-15, 0, -2.62268e-07, -1, -5.24537e-07, -6, 4.37114e-08, 0, 3, 0)
 mesh = SubResource("QuadMesh_i5arm")
+skeleton = NodePath("../..")
 script = ExtResource("4_i5arm")
 diffusionColor = Color(1, 1, 1, 1)
 emissionColor = Color(1, 1, 1, 1)
 emissionIntensity = 0.2
 roughness = 1.0
 
-[node name="MeshInstance3D7" type="MeshInstance3D" parent="."]
+[node name="Floor" type="MeshInstance3D" parent="Room"]
 transform = Transform3D(-6, 5.24537e-07, 3.82137e-15, 0, -2.62268e-07, 1, 5.24537e-07, 6, 4.37114e-08, 0, -3, 0)
 mesh = SubResource("QuadMesh_i5arm")
+skeleton = NodePath("../..")
 script = ExtResource("4_i5arm")
 diffusionColor = Color(1, 1, 1, 1)
 emissionColor = Color(1, 1, 1, 1)
 emissionIntensity = 0.01
 roughness = 1.0
 
-[node name="MeshInstance3D3" type="MeshInstance3D" parent="."]
-transform = Transform3D(-2.62268e-07, 0, 0.991, 0, 6, 0, -6, 0, -4.3318e-08, -3, 0, 0)
-mesh = SubResource("QuadMesh_i5arm")
-script = ExtResource("4_i5arm")
-diffusionColor = Color(0.952076, 0.441174, 0.407683, 1)
-roughness = 1.0
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+[node name="BallBottom" type="MeshInstance3D" parent="Room"]
 transform = Transform3D(1.62922, 1.16001, -9.11985e-07, -0.53752, 0.754939, -1.77233, -1.02796, 1.44376, 0.926748, 2.63744, -2.60333, -2.63485)
 mesh = SubResource("SphereMesh_i5arm")
+skeleton = NodePath("../..")
 script = ExtResource("4_i5arm")
 is_sphere = true
 diffusionColor = Color(1, 1, 1, 1)
@@ -119,21 +130,19 @@ emissionColor = Color(2.11775e-06, 0.758819, 0.797824, 1)
 emissionIntensity = 0.5
 roughness = 1.0
 
-[node name="Monke" type="MeshInstance3D" parent="."]
+[node name="Monke" type="MeshInstance3D" parent="Room"]
 transform = Transform3D(0.613168, 0.388554, -0.955537, -0.0116847, 1.11416, 0.445555, 1.03145, -0.218363, 0.573088, 0.876374, 0.200435, -0.905175)
 mesh = ExtResource("6_i5arm")
+skeleton = NodePath("../..")
 script = ExtResource("4_i5arm")
 diffusionColor = Color(0.997312, 0.955277, 0.835114, 1)
 emissionColor = Color(0.695503, 0.695503, 0.695503, 1)
 roughness = 0.1
 
-[node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(0.91609, 0, -0.400973, 0, 1, 0, 0.400973, 0, 0.91609, 0, 0, 2.27715)
-script = ExtResource("1_noarx")
-
-[node name="MeshInstance3D8" type="MeshInstance3D" parent="."]
+[node name="BallTop" type="MeshInstance3D" parent="Room"]
 transform = Transform3D(1.62922, 1.16001, -9.11985e-07, -0.53752, 0.754939, -1.77233, -1.02796, 1.44376, 0.926748, -2.32632, 2.6759, 2.53902)
 mesh = SubResource("SphereMesh_i5arm")
+skeleton = NodePath("../..")
 script = ExtResource("4_i5arm")
 is_sphere = true
 diffusionColor = Color(1, 1, 1, 1)
