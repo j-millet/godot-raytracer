@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://dg6nmjwdth8i6"]
+[gd_scene load_steps=10 format=3 uid="uid://dcudgi2d2io8v"]
 
 [ext_resource type="Script" uid="uid://vt10wqyb4pck" path="res://scripts/player-flying.gd" id="1_noarx"]
 [ext_resource type="Script" uid="uid://dq7ju8cnub8sk" path="res://RaymondManager.gd" id="2_noarx"]

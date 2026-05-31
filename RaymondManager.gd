@@ -9,6 +9,7 @@ var playerPos: Vector3
 var playerRot: Vector3
 
 var elapsedFramesNoMovement := 1
+var elapsedFrames := 1
 # Load GLSL shader
 var shader_file := load("res://raymond.glsl")
 var shader_spirv: RDShaderSPIRV = shader_file.get_spirv()
@@ -22,7 +23,6 @@ var img : Image
 var screen_size := DisplayServer.screen_get_size()
 var height_width_ratio := float(screen_size.y)/float(screen_size.x)
 
-@export var rays_per_pixel := 2;
 @export var max_ray_bounces := 2;
 @export var box_test_threshold := 10;
 @export var fov := 70.0
@@ -85,26 +85,17 @@ func make_uniform_from_packed_byte_array(bytes:PackedByteArray, binding: int = 0
 
 func make_constant_uniform_set() -> RID:
 	var constants := PackedInt32Array([max_ray_bounces,box_test_threshold])
-	var vertices := PackedVector4Array()
-	var indices := PackedInt32Array()
-	var normals := PackedVector4Array()
+	var triangles := PackedVector4Array()
 	var bvhs := PackedByteArray()
 	
 	var total_indices := 0
 
 	for o in objects:	
-
-		var past_size = vertices.size()
+		var obj_triangles = o.triangles
+		var past_size = triangles.size()
 		
-		vertices.resize(vertices.size() + o.mesh_vertices.size())
-		normals.resize(normals.size() + o.mesh_normals.size())
-		
-		for idx in o.mesh_indices:
-			indices.append(idx + past_size)
-			
-		for i in range(len(o.mesh_vertices)):
-			vertices[past_size + i] = vec3_to_vec4(o.mesh_vertices[i])
-			normals[past_size + i] = vec3_to_vec4(o.mesh_normals[i])
+		for triangle in obj_triangles:
+			triangles.append_array(triangle.toPackedVector4Array())
 	
 		for bvh in o.bvh:
 			bvhs.append_array(bvh.toPackedByteArray())
@@ -113,10 +104,8 @@ func make_constant_uniform_set() -> RID:
 	return rd.uniform_set_create(
 		[
 			make_uniform_from_packed_byte_array(constants.to_byte_array(),0),
-			make_uniform_from_packed_byte_array(vertices.to_byte_array(),1),
-			make_uniform_from_packed_byte_array(indices.to_byte_array(),2),
-			make_uniform_from_packed_byte_array(normals.to_byte_array(),3),
-			make_uniform_from_packed_byte_array(bvhs,4),
+			make_uniform_from_packed_byte_array(triangles.to_byte_array(),1),
+			make_uniform_from_packed_byte_array(bvhs,2),
 		], shader, 1)
 		
 func make_uniform_set() -> RID:
@@ -134,7 +123,7 @@ func make_uniform_set() -> RID:
 		vec3_to_vec4(player.transform.basis * Vector3(-1 * fov_multiplier, 1*height_width_ratio,1).normalized()),
 		vec3_to_vec4(player.transform.basis * Vector3( 1 * fov_multiplier,-1*height_width_ratio,1).normalized()),
 		vec3_to_vec4(player.transform.basis * Vector3(-1 * fov_multiplier,-1*height_width_ratio,1).normalized()),
-		Vector4(elapsedFramesNoMovement,0,0,0)
+		Vector4(elapsedFrames,elapsedFramesNoMovement,0,0)
 		])
 		
 	var obj_array := PackedByteArray()
@@ -176,6 +165,7 @@ func vsum(v:Vector3):
 	return v.x + v.y + v.z
 
 func _process(delta):
+	elapsedFrames += 1
 	if vsum(player.position - playerPos) == 0 and vsum(player.rotation -playerRot) == 0:
 		elapsedFramesNoMovement += 1
 	else:

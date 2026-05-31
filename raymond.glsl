@@ -11,12 +11,12 @@
 
 
 struct Triangle{
-    vec3 pointA;
-    vec3 pointB;
-    vec3 pointC;
-    vec3 normalA;
-    vec3 normalB;
-    vec3 normalC;
+    vec4 v0;
+    vec4 e1;
+    vec4 e2;
+    vec4 n0;
+    vec4 n1;
+    vec4 n2;
 };
 
 struct Material{
@@ -86,6 +86,7 @@ layout(set = 0, binding = 1, std430) readonly buffer CameraBuffer {
     vec4 bottomLeft;
     vec4 bottomRight;
     float elapsed_frames;
+    float elapsed_frames_no_movement;
 }
 camera;
 
@@ -100,23 +101,13 @@ layout(set = 1, binding = 0, std430) readonly buffer ConstantsBuffer {
 }
 constants;
 
-layout(set = 1, binding = 1, std430) readonly buffer VertexBuffer {
-    vec4 coords[];
+layout(set = 1, binding = 1, std430) readonly buffer TriangleBuffer {
+    Triangle triangles[];
 }
-vertices;
-
-layout(set = 1, binding = 2, std430) readonly buffer VertexIdxBuffer {
-    int indices[];
-}
-vertexIndices;
+triangles;
 
 
-layout(set = 1, binding = 3, std430) readonly buffer VertexNormalBuffer {
-    vec4 vecs[];
-}
-vertexNormals;
-
-layout(set = 1, binding = 4, std430) readonly buffer BVHBBoxesBuffer {
+layout(set = 1, binding = 2, std430) readonly buffer BVHBBoxesBuffer {
     BVHBBox bboxes[];
 }
 bvh;
@@ -135,7 +126,7 @@ float rand(inout uint state){
 float pi = 3.1415926535;
 
 float randn(inout uint state){
-    float u1 = rand(state);
+    float u1 = (rand(state) + 1e-7);
     float u2 = rand(state);
     return sqrt(-2*log(u1))*cos(2*pi*u2);
 }
@@ -163,17 +154,7 @@ vec3 rotateVec(vec3 vec, vec4 quatRotation){
 }
 
 Triangle getTriangle(int index){
-    int i1 = vertexIndices.indices[index];
-    int i2 = vertexIndices.indices[index + 1];
-    int i3 = vertexIndices.indices[index + 2];
-    return Triangle(
-        vec4tovec3(vertices.coords[i1]),
-        vec4tovec3(vertices.coords[i2]),
-        vec4tovec3(vertices.coords[i3]),
-        vec4tovec3(vertexNormals.vecs[i1]),
-        vec4tovec3(vertexNormals.vecs[i2]),
-        vec4tovec3(vertexNormals.vecs[i3])
-    );
+    return triangles.triangles[index];
 }
 
 Ray rayInObjectLocal(Ray ray, Object object){
@@ -232,9 +213,9 @@ Hit rayIntersects(
     Triangle tri,
     float epsilon
 ){
-    vec3 normalA = tri.normalA;
-    vec3 normalB = tri.normalB;
-    vec3 normalC = tri.normalC;
+    vec3 normalA = vec4tovec3(tri.n0);
+    vec3 normalB = vec4tovec3(tri.n1);
+    vec3 normalC = vec4tovec3(tri.n2);
     
     vec3 normal = normalize((normalA + normalB + normalC) * 0.333333333);
 
@@ -243,12 +224,9 @@ Hit rayIntersects(
     if (dot(normal,r.direction) > 0) return result;
 
 
-    vec3 triA = tri.pointA;
-    vec3 triB = tri.pointB;
-    vec3 triC = tri.pointC;
-
-    vec3 edge1 = triB - triA;
-    vec3 edge2 = triC - triA;
+    vec3 triA = vec4tovec3(tri.v0);
+    vec3 edge1 = vec4tovec3(tri.e1);
+    vec3 edge2 = vec4tovec3(tri.e2);
 
     vec3 cross_e2 = cross(r.direction,edge2);
     float det = dot(edge1,cross_e2);
@@ -320,7 +298,7 @@ Hit rayIntersectsObject(Ray r, Object obj){
             int endIdx = bbox.verticesEndLocal + obj.triangleIndicesStart;
             
 
-            for(int j = startIdx; j < endIdx && j < obj.triangleIndicesEnd; j+=3){
+            for(int j = startIdx; j < endIdx && j < obj.triangleIndicesEnd; j++){
                 Hit h = rayIntersects(r, getTriangle(j), 0.00001);
                 bool closer = h.didHit && (h.dist < objHit.dist);
                 objHit.boxTests++;
@@ -354,16 +332,16 @@ ObjectHit trace(Ray r){
 
         Hit objHit = Hit(false, 1e7, vec3(0), vec3(0),0);
 
-        if (obj.isSphere == 1){
-            objHit = rayIntersectsSphere(
-                r,
-                Sphere(
-                    vec4tovec3(obj.position),
-                    obj.scale.x/2.0
-                )
-            );
-        }
-        else{
+        // if (obj.isSphere == 1){
+        //     objHit = rayIntersectsSphere(
+        //         r,
+        //         Sphere(
+        //             vec4tovec3(obj.position),
+        //             obj.scale.x/2.0
+        //         )
+        //     );
+        // }
+        // else{
             Ray localRay = rayInObjectLocal(r, obj);
             objHit = rayIntersectsObject(localRay, obj);
 
@@ -372,7 +350,7 @@ ObjectHit trace(Ray r){
                 objHit.normal = objectNormalToWorld(objHit.normal, obj);
                 objHit.dist = length(objHit.point - r.origin);
             }
-        }
+        // }
 
         bool closer = objHit.didHit && (objHit.dist < minHit.dist);
         minHit = closer ? objHit : minHit;
@@ -396,21 +374,27 @@ Ray makeRay(vec3 origin, vec3 direction){
 
 void main() {
     ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
-    vec2 uv = vec2(
-        float(coords.x)/(gl_NumWorkGroups.x)/gl_WorkGroupSize.x,
-        float(coords.y)/(gl_NumWorkGroups.y)/gl_WorkGroupSize.y
-    );
 
+    uint seed = uint(camera.elapsed_frames) * coords.x * coords.y;
+
+    float sizex = gl_NumWorkGroups.x*gl_WorkGroupSize.x;
+    float sizey = gl_NumWorkGroups.y*gl_WorkGroupSize.y;
+
+
+    vec2 uv = vec2(
+        float(coords.x) / sizex,
+        float(coords.y)/ sizey
+    );
+	float xshift = rand(seed)/sizex;
 	vec3 pixel_point = normalize(vec4tovec3(mix(
-        mix(camera.topLeft,camera.topRight, uv.x),
-        mix(camera.bottomLeft,camera.bottomRight,uv.x),
-        uv.y
+        mix(camera.topLeft,camera.topRight, uv.x+xshift),
+        mix(camera.bottomLeft,camera.bottomRight,uv.x+xshift),
+        uv.y + rand(seed)/sizey
     )));
 
     vec4 value = vec4(0,0,0,1.0);
     vec4 rayColor = vec4(1,1,1,1);
 
-    uint seed = uint(camera.elapsed_frames) * coords.x * coords.y;
 
     Ray r = makeRay(vec4tovec3(camera.cameraPosition),pixel_point);
     for (int i = 0; i < constants.max_ray_bounces;i++){
@@ -419,8 +403,6 @@ void main() {
             break;
         }
         Object hitObj = objects.list[traceInfo.objectIndex];
-        //value.x += 255.0*float(traceInfo.hit.boxTests > constants.box_test_threshold);
-        // break;
         value += (hitObj.material.emissionColor) * hitObj.material.emissionIntensity * rayColor;
         rayColor *= hitObj.material.diffusionColor;
         r = makeRay(
@@ -434,8 +416,8 @@ void main() {
     }
     value.w = 1.0;
     
-    vec4 total_value = int(camera.elapsed_frames) == 1? vec4(0,0,0,0):imageLoad(image,coords);
-    total_value = ((total_value * (camera.elapsed_frames-1)) + value)/(camera.elapsed_frames);
+    vec4 total_value = int(camera.elapsed_frames_no_movement) == 1? vec4(0,0,0,0):imageLoad(image,coords);
+    total_value = ((total_value * (camera.elapsed_frames_no_movement-1)) + value)/(camera.elapsed_frames_no_movement);
 
     imageStore(image,coords,total_value);
 }
